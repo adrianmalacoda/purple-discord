@@ -1728,16 +1728,17 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 		DiscordUser *self = discord_get_user(da, da->self_user_id);
 		if (self) {
 			DiscordGuildMembership *membership = g_hash_table_lookup_int64(self->guild_memberships, guild->id);
-
-			for (i = json_array_get_length(mention_roles) - 1; i >= 0; i--) {
-				guint64 id = to_int(json_array_get_string_element(mention_roles, i));
-
-				for (guint i = 0; i < membership->roles->len; i++) {
-					guint64 role_id = g_array_index(membership->roles, guint64, i);
-
-					if (role_id == id) {
-						flags |= PURPLE_MESSAGE_NICK;
-						break;
+			if (membership) {
+				for (i = json_array_get_length(mention_roles) - 1; i >= 0; i--) {
+					guint64 id = to_int(json_array_get_string_element(mention_roles, i));
+	
+					for (guint i = 0; i < membership->roles->len; i++) {
+						guint64 role_id = g_array_index(membership->roles, guint64, i);
+	
+						if (role_id == id) {
+							flags |= PURPLE_MESSAGE_NICK;
+							break;
+						}
 					}
 				}
 			}
