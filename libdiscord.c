@@ -4273,10 +4273,14 @@ discord_escape_md(const gchar *markdown)
 	gboolean verbatim = FALSE;
 	gboolean code_block = FALSE;
 	gboolean link = FALSE;
+    gboolean is_first_char = FALSE;
+    gboolean is_last_char = FALSE;
 
 	for (guint i = 0; i < markdown_len; ++i) {
 		char c = markdown[i];
-
+        is_first_char = i == 0;
+        is_last_char = i == markdown_len - 1;
+        
 		if (c == '`') {
 			if (code_block) {
 				code_block = verbatim = FALSE;
@@ -4286,7 +4290,7 @@ discord_escape_md(const gchar *markdown)
 
 			g_string_append_c(s, markdown[i]);
 
-			if (markdown[i + 1] == '`' && markdown[i + 2] == '`') {
+			if (i > (markdown_len - 2) && markdown[i + 1] == '`' && markdown[i + 2] == '`') {
 				i += 2;
 				g_string_append_c(s, markdown[i]);
 				g_string_append_c(s, markdown[i]);
@@ -4309,13 +4313,13 @@ discord_escape_md(const gchar *markdown)
 
 		if (!verbatim) {
 			if (
-			  (c == '_' && (markdown[i + 1] == ' ' ||
-							markdown[i + 1] == '\0' ||
-							markdown[i - 1] == ' ' ||
-							markdown[i - 1] == '\0')) ||
+			  (c == '_' && ((!is_last_char && markdown[i + 1] == ' ') ||
+							(!is_last_char && markdown[i + 1] == '\0') ||
+							(!is_first_char && markdown[i - 1] == ' ') ||
+							(!is_first_char && markdown[i - 1] == '\0'))) ||
 			  (c == '*') ||
-			  (c == '\\' && markdown[i + 1] != '_') ||
-			  (c == '~' && (markdown[i + 1] == '~'))) {
+			  (c == '\\' && (!is_last_char && markdown[i + 1] != '_')) ||
+			  (c == '~' && (!is_last_char && (markdown[i + 1] == '~')))) {
 				g_string_append_c(s, '\\');
 			}
 		}
