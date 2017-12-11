@@ -4273,11 +4273,9 @@ discord_escape_md(const gchar *markdown)
 	gboolean verbatim = FALSE;
 	gboolean code_block = FALSE;
 	gboolean link = FALSE;
-    gboolean is_first_char = FALSE;
 
 	for (guint i = 0; i < markdown_len; ++i) {
 		char c = markdown[i];
-        is_first_char = i == 0;
         
 		if (c == '`') {
 			if (code_block) {
@@ -4313,7 +4311,7 @@ discord_escape_md(const gchar *markdown)
 			if (
 			  (c == '_' && (markdown[i + 1] == ' ' ||
 							markdown[i + 1] == '\0' ||
-                            is_first_char ||
+                            i == 0 ||
 							markdown[i - 1] == ' ' ||
 							markdown[i - 1] == '\0')) ||
 			  (c == '*') ||
