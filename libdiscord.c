@@ -4274,12 +4274,10 @@ discord_escape_md(const gchar *markdown)
 	gboolean code_block = FALSE;
 	gboolean link = FALSE;
     gboolean is_first_char = FALSE;
-    gboolean is_last_char = FALSE;
 
 	for (guint i = 0; i < markdown_len; ++i) {
 		char c = markdown[i];
         is_first_char = i == 0;
-        is_last_char = i == markdown_len - 1;
         
 		if (c == '`') {
 			if (code_block) {
@@ -4313,16 +4311,17 @@ discord_escape_md(const gchar *markdown)
 
 		if (!verbatim) {
 			if (
-			  (c == '_' && ((is_last_char || markdown[i + 1] == ' ') ||
-							(!is_last_char && markdown[i + 1] == '\0') ||
-							(!is_first_char && markdown[i - 1] == ' ') ||
-							(!is_first_char && markdown[i - 1] == '\0'))) ||
+			  (c == '_' && (markdown[i + 1] == ' ' ||
+							markdown[i + 1] == '\0' ||
+                            is_first_char ||
+							markdown[i - 1] == ' ' ||
+							markdown[i - 1] == '\0')) ||
 			  (c == '*') ||
-			  (c == '\\' && (!is_last_char && markdown[i + 1] != '_')) ||
-			  (c == '~' && (!is_last_char && (markdown[i + 1] == '~')))) {
+			  (c == '\\' && markdown[i + 1] != '_') ||
+			  (c == '~' && (markdown[i + 1] == '~'))) {
 				g_string_append_c(s, '\\');
 			}
-		}
+}
 
 		g_string_append_c(s, c);
 	}
