@@ -4313,7 +4313,7 @@ discord_escape_md(const gchar *markdown)
 
 		if (!verbatim) {
 			if (
-			  (c == '_' && ((!is_last_char && markdown[i + 1] == ' ') ||
+			  (c == '_' && ((is_last_char || markdown[i + 1] == ' ') ||
 							(!is_last_char && markdown[i + 1] == '\0') ||
 							(!is_first_char && markdown[i - 1] == ' ') ||
 							(!is_first_char && markdown[i - 1] == '\0'))) ||
