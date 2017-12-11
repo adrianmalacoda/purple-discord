@@ -13,7 +13,12 @@ START_TEST(test_escape_md)
     printf("%s\n", discord_escape_md("__foo__ __bar_"));
     printf("%s\n", discord_escape_md("__foo__ __bar__"));
     printf("%s\n", discord_escape_md("__foo__ __bar__ **baz"));
-}
+    printf("%s\n", discord_escape_md("fred __foo__ __bar__ **baz"));
+    printf("%s\n", discord_escape_md("`"));
+    printf("%s\n", discord_escape_md("``"));
+    printf("%s\n", discord_escape_md("`bat"));
+    printf("%s\n", discord_escape_md("`baz`"));}
+    printf("%s\n", discord_escape_md("``bread"));
 END_TEST
  
 Suite * markdown_suite(void)
