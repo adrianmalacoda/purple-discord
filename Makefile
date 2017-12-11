@@ -143,3 +143,7 @@ clean:
 gdb:
 	gdb --args pidgin -c ~/.fake_purple -n -m
 
+check:
+	$(CC) $(CFLAGS) -o discord-test tests/check_markdown.c -lcheck -lm -lrt -lsubunit `$(PKG_CONFIG) purple glib-2.0 json-glib-1.0 --libs --cflags`  $(INCLUDES) -Ipurple2compat -g -ggdb
+	./discord-test
+
