@@ -2819,10 +2819,12 @@ discord_buddy_guild(DiscordAccount *da, DiscordGuild *guild)
 
 	if (!group) {
 		group = purple_group_new(guild->name);
-	}
 
-	if (!group) {
-		return;
+		if (!group) {
+			return;
+		}
+
+		purple_blist_add_group(group, NULL);
 	}
 
 	GHashTableIter iter;
@@ -2856,8 +2858,6 @@ discord_buddy_guild(DiscordAccount *da, DiscordGuild *guild)
 
 		discord_add_channel_to_blist(da, channel, group);
 	}
-
-	purple_blist_add_group(group, NULL);
 }
 
 static void
