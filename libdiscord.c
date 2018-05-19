@@ -14,7 +14,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
@@ -496,9 +496,19 @@ discord_get_user_name(DiscordAccount *da, int discriminator, gchar *name)
 static DiscordUser *
 discord_get_user_fullname(DiscordAccount *da, const gchar *name)
 {
+	g_return_val_if_fail(name && *name, NULL);
+	
 	gchar **split_name = g_strsplit(name, "#", 2);
-	DiscordUser *user = discord_get_user_name(da, to_int(split_name[1]), split_name[0]);
-	g_strfreev(split_name);
+	DiscordUser *user = NULL;
+	
+	if (split_name != NULL) {
+		if (split_name[0] && split_name[1]) {
+			discord_get_user_name(da, to_int(split_name[1]), split_name[0]);
+		}
+		
+		g_strfreev(split_name);
+	}
+	
 	return user;
 }
 static DiscordUser *
@@ -1208,7 +1218,7 @@ discord_send_auth(DiscordAccount *da)
 		json_object_set_string_member(properties, "browser", "Pidgin");
 		json_object_set_object_member(data, "properties", properties);
 
-		/* TODO real presense */
+		/* TODO real presence */
 		json_object_set_string_member(presence, "status", "online");
 		json_object_set_object_member(data, "presence", presence);
 	}
@@ -1411,6 +1421,10 @@ discord_replace_mentions_bare(DiscordAccount *da, DiscordGuild *g, gchar *messag
 static guint64
 discord_find_role_by_name(DiscordGuild *guild, const gchar *name)
 {
+	if (!guild) {
+		return 0;
+	}
+	
 	if (purple_strequal(name, "everyone")) {
 		return guild->id;
 	}
@@ -1436,6 +1450,11 @@ discord_find_channel_by_name(DiscordGuild *guild, gchar *name)
 	GHashTableIter iter;
 	gpointer key;
 	gpointer value;
+	
+	if (!guild) {
+		return 0;
+	}
+	
 	g_hash_table_iter_init(&iter, guild->channels);
 
 	while (g_hash_table_iter_next(&iter, (gpointer *) &key, &value)) {
@@ -1493,7 +1512,7 @@ discord_make_mention(const GMatchInfo *match, GString *result, gpointer user_dat
 
 	if (user) {
 		g_string_append_printf(result, "&lt;@%" G_GUINT64_FORMAT "&gt; ", user->id);
-	} else {
+	} else if (guild != NULL) {
 		/* If that fails, find a role */
 		guint64 role = discord_find_role_by_name(guild, identifier);
 
@@ -1510,6 +1529,8 @@ discord_make_mention(const GMatchInfo *match, GString *result, gpointer user_dat
 				g_string_append(result, match_string);
 			}
 		}
+	} else {
+		g_string_append(result, match_string);
 	}
 
 	g_free(match_string);
@@ -1687,7 +1708,8 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 		return msg_id;
 	}
 
-	DiscordUser *author = discord_upsert_user(da->new_users, json_object_get_object_member(data, "author"));
+	JsonObject *author_obj = json_object_get_object_member(data, "author");
+	guint64 author_id = to_int(json_object_get_string_member(author_obj, "id"));
 
 	const gchar *channel_id_s = json_object_get_string_member(data, "channel_id");
 	guint64 channel_id = to_int(channel_id_s);
@@ -1707,7 +1729,7 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 	DiscordGuild *guild = NULL;
 	discord_get_channel_global_int_guild(da, channel_id, &guild);
 
-	if (author->id == da->self_user_id) {
+	if (author_id == da->self_user_id) {
 		flags = PURPLE_MESSAGE_SEND | PURPLE_MESSAGE_REMOTE_SEND | PURPLE_MESSAGE_DELAYED;
 	} else {
 		flags = PURPLE_MESSAGE_RECV;
@@ -1783,7 +1805,7 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 	if (g_hash_table_contains(da->one_to_ones, channel_id_s)) {
 		/* private message */
 
-		if (author->id == da->self_user_id) {
+		if (author_id == da->self_user_id) {
 			if (!nonce || !g_hash_table_remove(da->sent_message_ids, nonce)) {
 				PurpleConversation *conv;
 				PurpleIMConversation *imconv;
@@ -1818,6 +1840,7 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 				}
 			}
 		} else {
+			DiscordUser *author = discord_upsert_user(da->new_users, author_obj);
 			gchar *merged_username = discord_create_fullname(author);
 
 			if (escaped_content && *escaped_content) {
@@ -1845,7 +1868,13 @@ discord_process_message(DiscordAccount *da, JsonObject *data, gboolean edited)
 			discord_open_chat(da, channel_id, NULL, mentioned);
 		}
 
-		gchar *name = discord_create_nickname(author, guild);
+		gchar *name = NULL;
+		if (json_object_has_member(data, "webhook_id")) {
+			name = g_strdup(json_object_get_string_member(author_obj, "username"));
+		} else {
+			DiscordUser *author = discord_upsert_user(da->new_users, author_obj);
+			name = discord_create_nickname(author, guild);
+		}
 
 		if (escaped_content && *escaped_content) {
 			purple_serv_got_chat_in(da->pc, discord_chat_hash(channel_id), name, flags, escaped_content, timestamp);
@@ -2174,7 +2203,7 @@ discord_process_dispatch(DiscordAccount *da, const gchar *type, JsonObject *data
 		const gchar *channel_id = json_object_get_string_member(data, "channel_id");
 		guint64 user_id = to_int(json_object_get_string_member(data, "user_id"));
 
-		/* Don't display typing notfications from ourselves */
+		/* Don't display typing notifications from ourselves */
 		if (user_id == da->self_user_id) {
 			return;
 		}
@@ -2275,6 +2304,7 @@ discord_process_dispatch(DiscordAccount *da, const gchar *type, JsonObject *data
 		purple_connection_set_state(da->pc, PURPLE_CONNECTION_CONNECTED);
 	} else if (purple_strequal(type, "READY")) {
 		JsonObject *self_user = json_object_get_object_member(data, "user");
+		DiscordUser *self_user_obj = NULL;
 		da->self_user_id = to_int(json_object_get_string_member(self_user, "id"));
 
 		if (!purple_account_get_private_alias(da->account)) {
@@ -2288,8 +2318,11 @@ discord_process_dispatch(DiscordAccount *da, const gchar *type, JsonObject *data
 		g_free(da->session_id);
 		da->session_id = g_strdup(json_object_get_string_member(data, "session_id"));
 
-		/* Ensure user is non-null... */
-		g_hash_table_replace_int64(da->new_users, da->self_user_id, self_user);
+		self_user_obj = discord_get_user(da, da->self_user_id);
+		if (!self_user_obj) {
+			/* Ensure user is non-null... */
+			discord_upsert_user(da->new_users, self_user);
+		}
 
 		discord_got_relationships(da, json_object_get_member(data, "relationships"), NULL);
 		discord_got_private_channels(da, json_object_get_member(data, "private_channels"), NULL);
@@ -2297,8 +2330,10 @@ discord_process_dispatch(DiscordAccount *da, const gchar *type, JsonObject *data
 		discord_got_guilds(da, json_object_get_member(data, "guilds"), NULL);
 		discord_got_read_states(da, json_object_get_member(data, "read_state"), NULL);
 
-		/* ...But steal afterward, this user object is partial */
-		g_hash_table_steal(da->new_users, &da->self_user_id);
+		if (!self_user_obj) {
+			/* ...But remove afterward, this user object is partial */
+			g_hash_table_remove(da->new_users, &da->self_user_id);
+		}
 		
 		/* ready for libpurple to join chats etc */
 		purple_connection_set_state(da->pc, PURPLE_CONNECTION_CONNECTED);
