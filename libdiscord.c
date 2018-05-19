@@ -3833,7 +3833,7 @@ discord_get_room_last_id(DiscordAccount *da, guint64 id)
 		if (last_room_id != 0) {
 			last_room_id = (last_room_id << 32) | ((guint64) purple_blist_node_get_int(blistnode, "last_message_id_low") & 0xFFFFFFFF);
 
-			last_message_id = MAX(da->last_message_id, last_room_id);
+			last_message_id = last_room_id; //MAX(da->last_message_id, last_room_id);
 		}
 	}
 
